@@ -2325,6 +2325,7 @@ function renderPanel(s){
 }
 
 /* waveform real */
+const PEAK_CACHE = {};
 const N_BARS = 58;
 function initWaveform(s){
   const A = groupTone(s.group?.name);
@@ -2334,10 +2335,9 @@ function initWaveform(s){
   const tCur = document.getElementById('tCur');
   const tDur = document.getElementById('tDur');
 
-  // barras de respaldo (mientras decodifica)
-  const rnd = mulberry32(s.seed);
-  let bars = Array.from({length:N_BARS},(_,i)=>{const env=Math.sin((i/N_BARS)*Math.PI);return Math.max(.08,(.18+rnd()*.82)*(.45+.55*env));});
-  let realPeaks=false;
+  let bars;
+  let realPeaks = false;
+
   function paint(){
     const prog = audio.duration ? audio.currentTime/audio.duration : 0;
     wave.innerHTML = bars.map((h,i)=>{
@@ -2345,19 +2345,35 @@ function initWaveform(s){
       return `<span style="height:${(h*100).toFixed(1)}%;background:${on?A.c:'var(--barOff)'};opacity:${realPeaks?1:.55}"></span>`;
     }).join("");
   }
-  paint();
 
-  // decodifica audio real → picos
-  (async()=>{
-    try{
-      const res = await fetch(s.audio); const buf = await res.arrayBuffer();
-      const Ctx = window.AudioContext||window.webkitAudioContext; const ctx = new Ctx();
-      const ab = await ctx.decodeAudioData(buf); const data = ab.getChannelData(0);
-      const block = Math.max(1,Math.floor(data.length/N_BARS)); const out=[];
-      for(let i=0;i<N_BARS;i++){let sum=0;for(let j=0;j<block;j++){const v=data[i*block+j]||0;sum+=v*v;}out.push(Math.sqrt(sum/block));}
-      const mx = Math.max(...out)||1; bars = out.map(v=>Math.max(.08,v/mx)); realPeaks=true; paint(); ctx.close();
-    }catch(e){ /* mantiene respaldo */ }
-  })();
+  if (PEAK_CACHE[s.id]) {
+    bars = PEAK_CACHE[s.id];
+    realPeaks = true;
+    paint();
+  } else {
+    // barras de respaldo (mientras decodifica)
+    const rnd = mulberry32(s.seed);
+    bars = Array.from({length:N_BARS},(_,i)=>{const env=Math.sin((i/N_BARS)*Math.PI);return Math.max(.08,(.18+rnd()*.82)*(.45+.55*env));});
+    paint();
+
+    // decodifica audio real → picos
+    (async()=>{
+      try{
+        const res = await fetch(s.audio); const buf = await res.arrayBuffer();
+        const Ctx = window.AudioContext||window.webkitAudioContext; const ctx = new Ctx();
+        const ab = await ctx.decodeAudioData(buf); const data = ab.getChannelData(0);
+        const block = Math.max(1,Math.floor(data.length/N_BARS)); const out=[];
+        for(let i=0;i<N_BARS;i++){let sum=0;for(let j=0;j<block;j++){const v=data[i*block+j]||0;sum+=v*v;}out.push(Math.sqrt(sum/block));}
+        const mx = Math.max(...out)||1;
+        const calculatedBars = out.map(v=>Math.max(.08,v/mx));
+        PEAK_CACHE[s.id] = calculatedBars;
+        bars = calculatedBars;
+        realPeaks = true;
+        paint();
+        ctx.close();
+      }catch(e){ /* mantiene respaldo */ }
+    })();
+  }
 
   audio.addEventListener('loadedmetadata', ()=>{ tDur.textContent = audio.duration?fmtTime(audio.duration):'–:––'; });
   audio.addEventListener('timeupdate', ()=>{ tCur.textContent=fmtTime(audio.currentTime); paint(); });
