@@ -1,0 +1,5 @@
+.DS_Store
+original_assets/
+.vercel
+node_modules/
+dist/

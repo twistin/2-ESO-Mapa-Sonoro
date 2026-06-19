@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/Mapa_Sonoro_Real.html"
+    }
+  ]
+}
