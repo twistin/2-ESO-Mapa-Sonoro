@@ -1247,10 +1247,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
   /* ---------- PANEL ---------- */
   .scrim{
-    display:none;position:fixed;inset:0;z-index:850;
+    position:fixed;inset:0;z-index:850;
     background:linear-gradient(90deg, rgba(18,16,14,.04), rgba(18,16,14,.3));
+    opacity:0;pointer-events:none;
+    transition:opacity .42s ease;
   }
-  .scrim.show{display:block}
+  .scrim.show{opacity:1;pointer-events:auto}
   .panel{
     position:fixed;top:0;right:0;z-index:900;
     width:min(470px,94vw);height:100%;
